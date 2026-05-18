@@ -89,7 +89,7 @@ export default function Navbar() {
                 <span className="profile-popup-role">Mahasiswa</span>
               </div>
               <div className="profile-popup-bottom">
-                <button className="profile-popup-logout" onClick={() => navigate("/")}>
+                <button className="profile-popup-logout" onClick={() => { localStorage.removeItem("user"); navigate("/login"); }}>
                   <LogoutIcon />
                   Keluar
                 </button>

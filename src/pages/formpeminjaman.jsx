@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/navbar";
+import { fetchApi } from "../config/api";
+import { mapBook } from "../utils/bookMapper";
 import "./formpeminjaman.css";
 
-// ─── ICONS ──────────────────────────────────────────────────────────────────
 const ArrowLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="19" y1="12" x2="5" y2="12"/>
@@ -33,21 +34,8 @@ const CheckCircle = () => (
   </svg>
 );
 
-// ─── DATA BUKU (sama seperti di DetailBuku) ──────────────────────────────────
-const BUKU_LIST = [
-  { id: 1, cover: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80", judul: "Seni Menenangkan Hati", penulis: "Andi Wijaya", status: "tersedia" },
-  { id: 2, cover: "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=400&q=80", judul: "Alam Semesta & Kita", penulis: "Dr. Sarah Fitri", status: "dipinjam" },
-  { id: 3, cover: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80", judul: "Petualangan Si Kecil", penulis: "Bunda Maya", status: "tersedia" },
-  { id: 4, cover: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&q=80", judul: "Ruang Tenang", penulis: "Rania Putri", status: "tersedia" },
-  { id: 5, cover: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80", judul: "Mencari Makna Hidup", penulis: "Viktor Frankl", status: "tersedia" },
-  { id: 6, cover: "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=400&q=80", judul: "Masa Depan AI", penulis: "Budi Santoso", status: "dipinjam" },
-  { id: 7, cover: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80", judul: "Nusantara Berjaya", penulis: "Prof. Ahmad", status: "tersedia" },
-  { id: 8, cover: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&q=80", judul: "Strategi Digital", penulis: "Linda Sari", status: "tersedia" },
-];
-
 const DURASI_OPTIONS = ["7 hari", "14 hari", "21 hari", "30 hari"];
 
-// ─── HELPER: hitung estimasi pengembalian ────────────────────────────────────
 function hitungEstimasi(tanggal, durasi) {
   if (!tanggal) return null;
   const hari = parseInt(durasi);
@@ -56,39 +44,75 @@ function hitungEstimasi(tanggal, durasi) {
   return tgl.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 }
 
-// ─── KOMPONEN UTAMA ──────────────────────────────────────────────────────────
-/**
- * File  : src/pages/FormPeminjaman.jsx
- * Route : /buku/:id/pinjam
- */
 export default function FormPeminjaman() {
   const navigate = useNavigate();
   const { id } = useParams();
-
-  const buku = BUKU_LIST.find((b) => b.id === Number(id));
-
+  const [buku, setBuku] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [durasi, setDurasi] = useState("7 hari");
   const [tanggal, setTanggal] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function loadBook() {
+      setLoading(true);
+      const res = await fetchApi(`/books/${id}`);
+      if (!res.error && res.data) {
+        setBuku(mapBook(res.data));
+      }
+      setLoading(false);
+    }
+    if (id) loadBook();
+  }, [id]);
 
   const estimasi = hitungEstimasi(tanggal, durasi);
 
-  function handleKonfirmasi() {
+  async function handleKonfirmasi() {
     if (!tanggal) {
       alert("Silakan pilih tanggal peminjaman terlebih dahulu.");
       return;
     }
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    if (!user?.id) {
+      alert("Silakan login terlebih dahulu.");
+      navigate("/login");
+      return;
+    }
+    setSubmitting(true);
+    const res = await fetchApi("/books/borrow", {
+      method: "POST",
+      body: JSON.stringify({ user_id: user.id, book_id: Number(id) }),
+    });
+    setSubmitting(false);
+    if (res.error) {
+      alert(res.error || "Gagal meminjam buku.");
+      return;
+    }
     setSubmitted(true);
-    // Di sini bisa tambahkan logika submit ke API
-    setTimeout(() => navigate("/"), 2000);
+    setTimeout(() => navigate("/pinjaman"), 2000);
+  }
+
+  if (loading) {
+    return (
+      <div className="home-page">
+        <Navbar />
+        <main className="form-page">
+          <p style={{ textAlign: "center", color: "#999" }}>Memuat buku...</p>
+        </main>
+      </div>
+    );
   }
 
   if (!buku) {
     return (
-      <main className="form-page">
-        <button className="back-btn" onClick={() => navigate(-1)}><ArrowLeft /> Kembali</button>
-        <p style={{ color: "var(--gray-400)", marginTop: 40 }}>Buku tidak ditemukan.</p>
-      </main>
+      <div className="home-page">
+        <Navbar />
+        <main className="form-page">
+          <button className="back-btn" onClick={() => navigate(-1)}><ArrowLeft /> Kembali</button>
+          <p style={{ color: "var(--gray-400)", marginTop: 40 }}>Buku tidak ditemukan.</p>
+        </main>
+      </div>
     );
   }
 
@@ -96,81 +120,70 @@ export default function FormPeminjaman() {
     <div className="home-page">
       <Navbar />
       <main className="form-page">
-        {/* ── Header ── */}
         <div className="form-header">
           <h1 className="form-title">Formulir Peminjaman Buku</h1>
           <p className="form-subtitle">Silakan lengkapi detail peminjaman di bawah ini untuk melanjutkan.</p>
         </div>
 
-      {/* ── Body ── */}
-      <div className="form-body">
-        {/* ── Kolom Kiri: Info Buku ── */}
-        <div className="form-book-card">
-          <h2 className="form-book-card__heading">Buku yang Dipinjam</h2>
-          <div className="form-book-card__cover-wrap">
-            <div className="form-book-card__cover-plain"></div>
-          </div>
-          <span className="form-book-card__badge">TERSEDIA</span>
-          <h3 className="form-book-card__title">{buku.judul}</h3>
-          <p className="form-book-card__author">{buku.penulis}</p>
-        </div>
-
-        {/* ── Kolom Kanan: Form ── */}
-        <div className="form-fields">
-          {/* Durasi */}
-          <div className="field-group">
-            <label className="field-label">Durasi Pinjam</label>
-            <div className="select-wrap">
-              <select
-                className="field-select"
-                value={durasi}
-                onChange={(e) => setDurasi(e.target.value)}
-              >
-                {DURASI_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              <span className="select-icon"><ChevronDown /></span>
+        <div className="form-body">
+          <div className="form-book-card">
+            <h2 className="form-book-card__heading">Buku yang Dipinjam</h2>
+            <div className="form-book-card__cover-wrap">
+              <img src={buku.cover} alt={buku.judul} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} />
             </div>
+            <span className="form-book-card__badge">TERSEDIA</span>
+            <h3 className="form-book-card__title">{buku.judul}</h3>
+            <p className="form-book-card__author">{buku.penulis}</p>
           </div>
 
-          {/* Tanggal */}
-          <div className="field-group">
-            <label className="field-label">Tanggal Peminjaman</label>
-            <div className="input-wrap">
-              <input
-                type="date"
-                className="field-input"
-                value={tanggal}
-                onChange={(e) => setTanggal(e.target.value)}
-              />
-              <span className="input-icon"><CalendarIcon /></span>
+          <div className="form-fields">
+            <div className="field-group">
+              <label className="field-label">Durasi Pinjam</label>
+              <div className="select-wrap">
+                <select className="field-select" value={durasi} onChange={(e) => setDurasi(e.target.value)}>
+                  {DURASI_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                <span className="select-icon"><ChevronDown /></span>
+              </div>
             </div>
+
+            <div className="field-group">
+              <label className="field-label">Tanggal Peminjaman</label>
+              <div className="input-wrap" onClick={() => document.getElementById("tanggal-peminjaman")?.showPicker?.()}>
+                <input
+                  id="tanggal-peminjaman"
+                  type="date"
+                  className="field-input"
+                  value={tanggal}
+                  onChange={(e) => setTanggal(e.target.value)}
+                />
+                <span className="input-icon"><CalendarIcon /></span>
+              </div>
+            </div>
+
+            <div className="estimasi-box">
+              <span className="estimasi-label">Estimasi Pengembalian</span>
+              <span className="estimasi-value">
+                {estimasi ?? <span className="estimasi-placeholder">Pilih tanggal dulu</span>}
+              </span>
+            </div>
+
+            <button
+              className={`konfirmasi-btn${submitted ? " konfirmasi-btn--success" : ""}`}
+              onClick={handleKonfirmasi}
+              disabled={submitted || submitting}
+            >
+              <CheckCircle />
+              {submitted ? "Peminjaman Dikonfirmasi!" : submitting ? "Memproses..." : "Konfirmasi Pinjaman"}
+            </button>
+
+            <button className="batal-btn" onClick={() => navigate(-1)} disabled={submitted}>
+              Batal
+            </button>
           </div>
-
-          {/* Estimasi */}
-          <div className="estimasi-box">
-            <span className="estimasi-label">Estimasi Pengembalian</span>
-            <span className="estimasi-value">
-              {estimasi ?? <span className="estimasi-placeholder">Pilih tanggal dulu</span>}
-            </span>
-          </div>
-
-          {/* Tombol */}
-          <button
-            className={`konfirmasi-btn${submitted ? " konfirmasi-btn--success" : ""}`}
-            onClick={handleKonfirmasi}
-            disabled={submitted}
-          >
-            <CheckCircle />
-            {submitted ? "Peminjaman Dikonfirmasi!" : "Konfirmasi Pinjaman"}
-          </button>
-
-          <button className="batal-btn" onClick={() => navigate(-1)} disabled={submitted}>
-            Batal
-          </button>
         </div>
-      </div>
       </main>
     </div>
   );

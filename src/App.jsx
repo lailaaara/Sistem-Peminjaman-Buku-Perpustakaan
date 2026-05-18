@@ -12,9 +12,34 @@ import AdminAnggota from "./pages/adminanggota";
 import AdminBuku from './pages/adminbuku';
 import Transaksi from "./pages/transaksi";
 
-function AdminRoute({ children }) {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  return user?.role === "admin" ? children : <Navigate to="/login" replace />;
+function getUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function ProtectedRoute({ children, adminOnly = false }) {
+  const user = getUser();
+  if (!user) return <Navigate to="/login" replace />;
+  if (adminOnly && user?.role !== "admin") return <Navigate to="/" replace />;
+  return children;
+}
+
+function PublicRoute({ children }) {
+  const user = getUser();
+  if (user) {
+    // Already logged in — send to appropriate home
+    return <Navigate to={user?.role === "admin" ? "/admin" : "/"} replace />;
+  }
+  return children;
+}
+
+function HomeRoute() {
+  const user = getUser();
+  if (!user) return <Navigate to="/login" replace />;
+  return <Home />;
 }
 
 function NotFound() {
@@ -30,42 +55,51 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public */}
-        <Route path="/login" element={<Login />} />
+        {/* Public — login page (redirect if already logged in) */}
+        <Route path="/login" element={
+          <PublicRoute><Login /></PublicRoute>
+        } />
 
-        {/* Main */}
-        <Route path="/" element={<Home />} />
-        <Route path="/katalog" element={<Home />} />
+        {/* Main — root route checks auth */}
+        <Route path="/" element={<HomeRoute />} />
+        <Route path="/katalog" element={<HomeRoute />} />
 
-        <Route path="/koleksi-buku" element={<KoleksiBuku />} />
-        <Route path="/koleksi" element={<KoleksiBuku />} />
+        {/* Protected user routes */}
+        <Route path="/koleksi-buku" element={
+          <ProtectedRoute><KoleksiBuku /></ProtectedRoute>
+        } />
+        <Route path="/koleksi" element={
+          <ProtectedRoute><KoleksiBuku /></ProtectedRoute>
+        } />
 
-        <Route path="/pinjaman" element={<PinjamanSaya />} />
-        <Route path="/notifikasi" element={<Notifikasi />} />
+        <Route path="/pinjaman" element={
+          <ProtectedRoute><PinjamanSaya /></ProtectedRoute>
+        } />
+        <Route path="/notifikasi" element={
+          <ProtectedRoute><Notifikasi /></ProtectedRoute>
+        } />
 
-        {/* Buku & Peminjaman */}
+        {/* Buku detail is public, but borrowing requires login */}
         <Route path="/buku/:id" element={<DetailBuku />} />
-        <Route path="/buku/:id/pinjam" element={<FormPeminjaman />} />
+        <Route path="/buku/:id/pinjam" element={
+          <ProtectedRoute><FormPeminjaman /></ProtectedRoute>
+        } />
 
-        {/* Admin */}
+        {/* Admin — requires login + admin role */}
         <Route path="/admin" element={
-          <AdminRoute><AdminDashboard /></AdminRoute>
+          <ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>
         } />
-
-        <Route path="/admin/dashboard" element={      
-          <AdminRoute><AdminDashboard /></AdminRoute>
+        <Route path="/admin/dashboard" element={
+          <ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>
         } />
-
         <Route path="/admin/anggota" element={
-          <AdminRoute><AdminAnggota /></AdminRoute>
+          <ProtectedRoute adminOnly><AdminAnggota /></ProtectedRoute>
         } />
-
         <Route path="/admin/buku" element={
-          <AdminRoute><AdminBuku /></AdminRoute>      
+          <ProtectedRoute adminOnly><AdminBuku /></ProtectedRoute>
         } />
-
         <Route path="/admin/transaksi" element={
-          <AdminRoute><Transaksi /></AdminRoute>     
+          <ProtectedRoute adminOnly><Transaksi /></ProtectedRoute>
         } />
 
         {/* Fallback */}

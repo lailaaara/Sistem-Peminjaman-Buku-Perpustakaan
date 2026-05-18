@@ -190,6 +190,18 @@
   align-items: center;
 }
 
+/* Make native date picker clickable */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+}
+
+input[type="date"]::-moz-calendar-picker-indicator {
+  cursor: pointer;
+}
+
 /* Estimasi */
 .estimasi-box {
   display: flex;

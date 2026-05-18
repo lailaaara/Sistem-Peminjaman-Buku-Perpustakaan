@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "./AdminNavbar.css";
+import "./adminnavbar.css";
 
 const NAV_LINKS = ["Dashboard", "Anggota", "Buku", "Transaksi"];
 
@@ -87,7 +87,7 @@ export default function AdminNavbar({ active }) {
                 <span className="profile-popup-role">Admin Perpustakaan</span>
               </div>
               <div className="profile-popup-bottom">
-                <button className="profile-popup-logout" onClick={() => navigate("/login")}>
+                <button className="profile-popup-logout" onClick={() => { localStorage.removeItem("user"); navigate("/login"); }}>
                   <LogoutIcon />
                   Keluar
                 </button>

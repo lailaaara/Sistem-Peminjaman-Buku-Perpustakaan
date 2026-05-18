@@ -1,59 +1,61 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import "./admin.css";
-import AdminNavbar from "../components/AdminNavbar";
+import AdminNavbar from "../components/adminnavbar";
+import { fetchApi } from "../config/api";
 
-const recentActivity = [
-  {
-    id: 1,
-    anggota: "user 1",
-    judul: "Filosofi Teras",
-    penulis: "Henry Manampiring",
-    status: "PINJAM",
-    waktu: "15 Mei 2026",
-  },
-  {
-    id: 2,
-    anggota: "user 2",
-    judul: "Bumi Manusia",
-    penulis: "Pramoedya Ananta Toer",
-    status: "KEMBALI",
-    waktu: "10 Mei 2026",
-  },
-  {
-    id: 3,
-    anggota: "user 3",
-    judul: "Laskar Pelangi",
-    penulis: "Andrea Hirata",
-    status: "PINJAM",
-    waktu: "8 Mei 2026",
-  },
-  {
-    id: 4,
-    anggota: "user 4",
-    judul: "Negeri 5 Menara",
-    penulis: "A. Fuadi",
-    status: "PINJAM",
-    waktu: "5 Mei 2026",
-  },
-];
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+}
 
+const STATUS_BADGE_CLASSES = {
+  borrowed: "badge-pinjam",
+  pending_return: "badge-terlambat",
+  returned: "badge-kembali",
+  not_returned: "badge-pinjam",
+};
+
+const STATUS_LABELS = {
+  borrowed: "PINJAM",
+  pending_return: "MENUNGGU",
+  returned: "KEMBALI",
+  not_returned: "HILANG",
+};
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState({ totalBooks: 0, totalTransactions: 0, pendingReturns: 0 });
+  const [activity, setActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      const [statsRes, activityRes] = await Promise.all([
+        fetchApi("/books/stats"),
+        fetchApi("/books/activity/recent"),
+      ]);
+      if (!statsRes.error && statsRes.data) {
+        setStats(statsRes.data);
+      }
+      if (!activityRes.error && Array.isArray(activityRes.data)) {
+        setActivity(activityRes.data);
+      }
+      setLoading(false);
+    }
+    loadData();
+  }, []);
 
   return (
     <div className="admin-root">
-      {/* Navbar */}
       <AdminNavbar active="Dashboard" />
 
-      {/* Main Content */}
       <main className="admin-main">
-        {/* Header */}
         <div className="admin-header">
           <h1 className="admin-title">Selamat Datang, Admin!</h1>
           <p className="admin-subtitle">Berikut adalah ringkasan perpustakaan Anda hari ini.</p>
         </div>
 
-        {/* Stats Cards */}
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon-wrap">
@@ -63,7 +65,7 @@ export default function AdminDashboard() {
             </div>
             <div className="stat-label">TOTAL BUKU</div>
             <div className="stat-value">
-              40 <span className="stat-unit">Buku</span>
+              {stats.totalBooks} <span className="stat-unit">Buku</span>
             </div>
           </div>
 
@@ -75,58 +77,75 @@ export default function AdminDashboard() {
             </div>
             <div className="stat-label">TOTAL TRANSAKSI</div>
             <div className="stat-value">
-              12 <span className="stat-unit">Transaksi</span>
+              {stats.totalTransactions} <span className="stat-unit">Transaksi</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon-wrap">
+              <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#c0306a" strokeWidth="1.7">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="stat-label">MENUNGGU VERIFIKASI</div>
+            <div className="stat-value">
+              {stats.pendingReturns || 0} <span className="stat-unit">Pengembalian</span>
             </div>
           </div>
         </div>
 
-        {/* Recent Activity */}
         <div className="activity-card">
           <div className="activity-header">
             <div>
               <h2 className="activity-title">Aktivitas Terbaru</h2>
               <p className="activity-desc">Pemantauan real-time perpustakaan</p>
             </div>
-            <button className="btn-lihat-semua">
-              Lihat Semua
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 6 }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
 
           <div className="activity-table-wrap">
-            <table className="activity-table">
-              <thead>
-                <tr>
-                  <th>ANGGOTA</th>
-                  <th>JUDUL BUKU</th>
-                  <th>STATUS</th>
-                  <th>WAKTU</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentActivity.map((row) => (
-                  <tr key={row.id}>
-                    <td className="td-anggota">{row.anggota}</td>
-                    <td className="td-buku">
-                      <span className="buku-judul">{row.judul}</span>
-                      <span className="buku-penulis">{row.penulis}</span>
-                    </td>
-                    <td>
-                      <span className={`badge ${row.status === "PINJAM" ? "badge-pinjam" : "badge-kembali"}`}>
-                        {row.status}
-                      </span>
-                    </td>
-                    <td className="td-waktu">{row.waktu}</td>
+            {loading ? (
+              <p style={{ textAlign: "center", padding: 24, color: "#999" }}>Memuat aktivitas...</p>
+            ) : (
+              <table className="activity-table">
+                <thead>
+                  <tr>
+                    <th>USER ID</th>
+                    <th>JUDUL BUKU</th>
+                    <th>STATUS</th>
+                    <th>WAKTU</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {activity.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: "center", padding: 24, color: "#999" }}>
+                        Belum ada aktivitas.
+                      </td>
+                    </tr>
+                  ) : (
+                    activity.map((row) => (
+                      <tr key={row.id}>
+                        <td className="td-anggota">User #{row.user_id}</td>
+                        <td className="td-buku">
+                          <span className="buku-judul">{row.book_title}</span>
+                          <span className="buku-penulis">{row.book_author}</span>
+                        </td>
+                        <td>
+                          <span className={`badge ${STATUS_BADGE_CLASSES[row.status] || "badge-pinjam"}`}>
+                            {STATUS_LABELS[row.status] || row.status}
+                          </span>
+                        </td>
+                        <td className="td-waktu">{formatDate(row.borrow_date)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div className="activity-footer">
-            Menampilkan 4 aktivitas terakhir dari 12 total data.
+            Menampilkan {Math.min(activity.length, 10)} aktivitas terakhir dari {stats.totalTransactions} total data.
           </div>
         </div>
       </main>

@@ -42,14 +42,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Dummy login logic
-      if (username === "admin") {
-        localStorage.setItem("user", JSON.stringify({ username, role: "admin" }));
-        window.location.href = "/admin"; // Redirect ke admin dashboard
-      } else {
-        localStorage.setItem("user", JSON.stringify({ username, role: "user" }));
-        window.location.href = "/"; // Redirect ke home
-      }
+      const userId = username === "admin"
+        ? 1
+        : Math.max(2, username.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 100000);
+      const role = username === "admin" ? "admin" : "user";
+      localStorage.setItem("user", JSON.stringify({ id: userId, username, role }));
+      window.location.href = role === "admin" ? "/admin" : "/";
     } catch (err) {
       console.error("Login gagal:", err);
     } finally {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./adminanggota.css";
-import AdminNavbar from "../components/AdminNavbar";
+import AdminNavbar from "../components/adminnavbar";
 
 const dummyAnggota = [
   { nim: "210901001", nama: "user 1", totalPinjam: 12, pinjamAktif: 2 },

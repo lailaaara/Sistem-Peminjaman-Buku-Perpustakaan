@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
+import { fetchApi } from "../config/api";
+import { mapBook } from "../utils/bookMapper";
 import "./home.css";
-
 
 const SearchIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -18,52 +19,6 @@ const ArrowRightIcon = () => (
   </svg>
 );
 
-// ── Data buku koleksi baru ───────────────────────────────────
-// TODO: Ganti dengan data dari bookService.js (src/services/bookService.js)
-const newBooks = [
-  {
-    id: 1,
-    category: "FIKSI",
-    title: "Filosofi Teras",
-    author: "Henry Manampiring",
-    status: "tersedia",
-    coverUrl: "/cover_filosofi.png",
-  },
-  {
-    id: 2,
-    category: "SELF IMPROVEMENT",
-    title: "Atomic Habits",
-    author: "James Clear",
-    status: "tersedia",
-    coverUrl: "/cover_atomic.png",
-  },
-  {
-    id: 3,
-    category: "SASTRA",
-    title: "Bumi Manusia",
-    author: "Pramoedya Ananta Toer",
-    status: "dipinjam",
-    coverUrl: "/cover_bumi.png",
-  },
-  {
-    id: 4,
-    category: "SAINS",
-    title: "Sapiens",
-    author: "Yuval Noah Harari",
-    status: "tersedia",
-    coverUrl: "/cover_sapiens.png",
-  },
-  {
-    id: 5,
-    category: "PSIKOLOGI",
-    title: "Quiet",
-    author: "Susan Cain",
-    status: "tersedia",
-    coverUrl: "/cover_quiet.png",
-  },
-];
-
-// ── Badge status ─────────────────────────────────────────────
 function StatusBadge({ status }) {
   return (
     <span className={`status-badge status-${status}`}>
@@ -72,7 +27,6 @@ function StatusBadge({ status }) {
   );
 }
 
-// ── Kartu buku kecil ─────────────────────────────────────────
 function BookCard({ book }) {
   const navigate = useNavigate();
   const isTersedia = book.status === "tersedia";
@@ -94,10 +48,7 @@ function BookCard({ book }) {
         <StatusBadge status={book.status} />
       </div>
       <div className="book-card-actions">
-        <button
-          className="book-btn book-btn--detail"
-          onClick={() => navigate(`/buku/${book.id}`)}
-        >
+        <button className="book-btn book-btn--detail" onClick={() => navigate(`/buku/${book.id}`)}>
           Detail Buku
         </button>
         <button
@@ -112,23 +63,44 @@ function BookCard({ book }) {
   );
 }
 
-// ── Halaman utama Home ───────────────────────────────────────
 export default function Home() {
   const [activeNav, setActiveNav] = useState("Katalog");
   const [search, setSearch] = useState("");
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    async function loadBooks() {
+      setLoading(true);
+      const res = await fetchApi("/books");
+      if (!res.error && Array.isArray(res.data)) {
+        setBooks(res.data.map(mapBook));
+      }
+      setLoading(false);
+    }
+    loadBooks();
+  }, []);
+
+  const heroBook = books[0];
+  const newBooks = books.slice(1);
+
+  const filteredNew = search
+    ? newBooks.filter((b) =>
+        b.title.toLowerCase().includes(search.toLowerCase()) ||
+        b.author.toLowerCase().includes(search.toLowerCase())
+      )
+    : newBooks;
 
   return (
     <div className="home-page">
-      {/* ── Navbar ── */}
       <Navbar activeNav={activeNav} setActiveNav={setActiveNav} />
 
       <main className="home-main">
-        {/* ── Section: Paling Dicari ── */}
+        {/* Section: Paling Dicari / Hero */}
         <section className="section-popular">
           <div className="section-header-row">
             <h2 className="section-title">Paling Dicari</h2>
-            {/* SearchBar — bisa dipindah ke src/components/common/SearchBar.jsx */}
             <div className="search-wrap">
               <SearchIcon />
               <input
@@ -141,47 +113,48 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Hero banner buku trending */}
-          <div className="hero-banner">
-            {/* Sampul buku hero */}
-            <div className="hero-cover">
-              <img src="/hero_book.png" alt="Buku Trending" className="hero-cover-img" />
-            </div>
-
-            {/* Info buku trending */}
-            <div className="hero-info">
-              <span className="trending-badge">TRENDING #1</span>
-              <h1 className="hero-title">Laskar Pelangi</h1>
-              <p className="hero-desc">
-                Kisah inspiratif tentang perjuangan sepuluh anak di Pulau Belitung
-                dalam meraih cita-cita melalui pendidikan yang terbatas.
-              </p>
-              <div className="hero-actions">
-                <button className="btn-primary" onClick={() => navigate("/buku/1/pinjam")}>Pinjam Sekarang</button>
-                <button className="btn-outline" onClick={() => navigate("/buku/1")}>Detail Buku</button>
+          {heroBook && (
+            <div className="hero-banner">
+              <div className="hero-cover">
+                <img src={heroBook.coverUrl} alt={heroBook.title} className="hero-cover-img" />
+              </div>
+              <div className="hero-info">
+                <span className="trending-badge">TRENDING #1</span>
+                <h1 className="hero-title">{heroBook.title}</h1>
+                <p className="hero-desc">
+                  {heroBook.sinopsis.slice(0, 180)}...
+                </p>
+                <div className="hero-actions">
+                  <button className="btn-primary" onClick={() => navigate(`/buku/${heroBook.id}/pinjam`)}>Pinjam Sekarang</button>
+                  <button className="btn-outline" onClick={() => navigate(`/buku/${heroBook.id}`)}>Detail Buku</button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+          {!heroBook && loading && <p style={{ textAlign: "center", color: "#999" }}>Memuat buku...</p>}
         </section>
 
-        {/* ── Section: Koleksi Baru ── */}
+        {/* Section: Koleksi Baru */}
         <section className="section-new">
           <div className="section-header-row">
             <div>
               <h2 className="section-title">Koleksi Baru</h2>
               <p className="section-sub">Baru saja tiba di rak digital kami</p>
             </div>
-            <button className="link-btn">
+            <button className="link-btn" onClick={() => navigate("/koleksi-buku")}>
               Lihat Semua <ArrowRightIcon />
             </button>
           </div>
 
-          {/* Grid buku */}
-          <div className="books-grid">
-            {newBooks.map((book) => (
-              <BookCard key={book.id} book={book} />
-            ))}
-          </div>
+          {loading ? (
+            <p style={{ textAlign: "center", color: "#999" }}>Memuat buku...</p>
+          ) : (
+            <div className="books-grid">
+              {filteredNew.map((book) => (
+                <BookCard key={book.id} book={book} />
+              ))}
+            </div>
+          )}
         </section>
       </main>
     </div>

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
+import { fetchApi } from "../config/api";
 import "./pinjamansaya.css";
 
-// ─── ICON ────────────────────────────────────────────────────────────────────
 const HistoryIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="1 4 1 10 7 10"/>
@@ -48,221 +48,214 @@ const BookIcon = () => (
   </svg>
 );
 
-// ─── DATA RIWAYAT PINJAMAN ───────────────────────────────────────────────────
-const RIWAYAT = [
-  {
-    id: 1,
-    cover: "/cover_filosofi.png",
-    judul: "Laut Bercerita",
-    penulis: "Leila S. Chudori",
-    tanggalPinjam: "10 Mei 2026",
-    tanggalKembali: "17 Mei 2026",
-    status: "dipinjam",
-  },
-  {
-    id: 2,
-    cover: "/cover_atomic.png",
-    judul: "Pulang",
-    penulis: "Tere Liye",
-    tanggalPinjam: "10 Mar 2026",
-    tanggalKembali: "17 Mar 2026",
-    status: "selesai",
-  },
-  {
-    id: 3,
-    cover: "/cover_forest.png",
-    judul: "Sapiens",
-    penulis: "Yuval Noah Harari",
-    tanggalPinjam: "01 Jan 2026",
-    tanggalKembali: "08 Jan 2026",
-    status: "selesai",
-  },
-];
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
 
-// ─── KOMPONEN UTAMA ──────────────────────────────────────────────────────────
-/**
- * File  : src/pages/PinjamanSaya.jsx
- * Route : /pinjaman
- */
 export default function PinjamanSaya() {
   const navigate = useNavigate();
   const [modalBuku, setModalBuku] = useState(null);
   const [successBuku, setSuccessBuku] = useState(null);
-  const [riwayat, setRiwayat] = useState(RIWAYAT);
+  const [riwayat, setRiwayat] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  async function loadRiwayat() {
+    if (!user?.id) return;
+    setLoading(true);
+    const res = await fetchApi(`/books/transactions/user/${user.id}`);
+    if (!res.error && Array.isArray(res.data)) {
+      setRiwayat(res.data);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadRiwayat();
+  }, []);
 
   const handleReturn = (item) => {
-    // Show modal with selected book
     setModalBuku(item);
   };
 
-  const handleConfirmReturn = () => {
-    // Ubah status menjadi menunggu
-    setRiwayat(prev => prev.map(book => 
-      book.id === modalBuku.id ? { ...book, status: "menunggu" } : book
-    ));
+  const handleConfirmReturn = async () => {
+    const res = await fetchApi("/books/return", {
+      method: "POST",
+      body: JSON.stringify({ transaction_id: modalBuku.id }),
+    });
+    if (res.error) {
+      alert(res.error || "Gagal mengajukan pengembalian.");
+      return;
+    }
     setSuccessBuku(modalBuku);
     setModalBuku(null);
+    loadRiwayat();
+  };
+
+  const getStatusLabel = (status) => {
+    if (status === "borrowed") return "Dipinjam";
+    if (status === "pending_return") return "Menunggu Konfirmasi Admin";
+    if (status === "returned") return "Selesai";
+    if (status === "not_returned") return "Buku Tidak Dikembalikan";
+    return status;
+  };
+
+  const getStatusClass = (status) => {
+    if (status === "borrowed") return "status-badge--dipinjam";
+    if (status === "pending_return") return "status-badge--menunggu";
+    if (status === "returned") return "status-badge--selesai";
+    if (status === "not_returned") return "status-badge--terlambat";
+    return "status-badge--dipinjam";
   };
 
   return (
     <div className="home-page">
       <Navbar />
       <main className="pinjaman-page">
-      {/* ── Header ── */}
-      <div className="pinjaman-header">
-        <h1 className="pinjaman-title">Pinjaman Saya</h1>
-        <p className="pinjaman-subtitle">
-          Lacak kemajuan membaca dan kelola tenggat waktu peminjaman buku Anda dengan tenang.
-        </p>
-      </div>
-
-      {/* ── Riwayat ── */}
-      <div className="riwayat-section">
-        <h2 className="riwayat-heading">
-          <HistoryIcon />
-          Riwayat Pinjaman
-        </h2>
-
-        <div className="riwayat-table-wrap">
-          <table className="riwayat-table">
-            <thead>
-              <tr>
-                <th>JUDUL BUKU</th>
-                <th>TANGGAL PINJAM</th>
-                <th>TANGGAL KEMBALI</th>
-                <th>STATUS</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {riwayat.map((item) => (
-                <tr key={item.id} className="riwayat-row">
-                  {/* Judul */}
-                  <td className="riwayat-judul-cell">
-                    <div className={`riwayat-cover-plain riwayat-cover-plain--${item.id}`}></div>
-                    <span className="riwayat-judul">{item.judul}</span>
-                  </td>
-
-                  {/* Tanggal Pinjam */}
-                  <td className="riwayat-date">{item.tanggalPinjam}</td>
-
-                  {/* Tanggal Kembali */}
-                  <td className="riwayat-date">{item.tanggalKembali}</td>
-
-                  {/* Status */}
-                  <td>
-                    <span className={`status-badge status-badge--${item.status}`}>
-                      {item.status === "dipinjam" ? "Dipinjam" : item.status === "menunggu" ? "Menunggu" : "Selesai"}
-                    </span>
-                  </td>
-
-                  {/* Aksi */}
-                  <td className="riwayat-aksi-cell">
-                    {item.status === "dipinjam" ? (
-                      <button className="aksi-btn aksi-btn--kembalikan" onClick={() => handleReturn(item)}>Kembalikan</button>
-                    ) : item.status === "menunggu" ? (
-                      <span className="riwayat-date" style={{ fontSize: '11.5px', color: '#9b4163', fontWeight: 600 }}>Menunggu Admin</span>
-                    ) : (
-                      <button
-                        className="aksi-btn aksi-btn--pinjam-lagi"
-                        onClick={() => navigate(`/buku/${item.id}/pinjam`)}
-                      >
-                        Pinjam Lagi
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="pinjaman-header">
+          <h1 className="pinjaman-title">Pinjaman Saya</h1>
+          <p className="pinjaman-subtitle">
+            Lacak kemajuan membaca dan kelola tenggat waktu peminjaman buku Anda dengan tenang.
+          </p>
         </div>
-      </div>
 
-      {/* ── Modal Konfirmasi Pengembalian ── */}
-      {modalBuku && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-icon-top">
-              <InfoIcon />
+        <div className="riwayat-section">
+          <h2 className="riwayat-heading">
+            <HistoryIcon />
+            Riwayat Pinjaman
+          </h2>
+
+          {loading ? (
+            <p style={{ textAlign: "center", color: "#999", padding: 24 }}>Memuat riwayat...</p>
+          ) : (
+            <div className="riwayat-table-wrap">
+              <table className="riwayat-table">
+                <thead>
+                  <tr>
+                    <th>JUDUL BUKU</th>
+                    <th>TANGGAL PINJAM</th>
+                    <th>TANGGAL KEMBALI</th>
+                    <th>STATUS</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {riwayat.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: "center", padding: 32, color: "#aaa" }}>
+                        Belum ada riwayat peminjaman.
+                      </td>
+                    </tr>
+                  ) : (
+                    riwayat.map((item) => (
+                      <tr key={item.id} className="riwayat-row">
+                        <td className="riwayat-judul-cell">
+                          <div className={`riwayat-cover-plain riwayat-cover-plain--${item.id}`}></div>
+                          <span className="riwayat-judul">{item.book_title}</span>
+                        </td>
+                        <td className="riwayat-date">{formatDate(item.borrow_date)}</td>
+                        <td className="riwayat-date">{formatDate(item.return_date)}</td>
+                        <td>
+                          <span className={`status-badge ${getStatusClass(item.status)}`}>
+                            {getStatusLabel(item.status)}
+                          </span>
+                        </td>
+                        <td className="riwayat-aksi-cell">
+                          {item.status === "borrowed" ? (
+                            <button className="aksi-btn aksi-btn--kembalikan" onClick={() => handleReturn(item)}>Kembalikan</button>
+                          ) : item.status === "pending_return" ? (
+                            <span style={{ fontSize: '11.5px', color: '#9b4163', fontWeight: 600 }}>Menunggu Admin</span>
+                          ) : item.status === "not_returned" ? (
+                            <span style={{ fontSize: '11.5px', color: '#c0392b', fontWeight: 600 }}>Tidak Dikembalikan</span>
+                          ) : (
+                            <button className="aksi-btn aksi-btn--pinjam-lagi" onClick={() => navigate(`/buku/${item.book_id}/pinjam`)}>
+                              Pinjam Lagi
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-            
-            <h3 className="modal-title">Konfirmasi Pengembalian</h3>
-            <p className="modal-subtitle">
-              Apakah Anda yakin ingin mengembalikan buku ini ke perpustakaan?
-            </p>
+          )}
+        </div>
 
-            <div className="modal-book-card">
-              <div className={`modal-book-cover riwayat-cover-plain--${modalBuku.id}`}></div>
-              <div className="modal-book-info">
-                <span className="modal-badge">Sedang Dipinjam</span>
-                <h4 className="modal-book-title">{modalBuku.judul}</h4>
-                <p className="modal-book-author">{modalBuku.penulis}</p>
-                <p className="modal-book-date">
+        {/* Modal Konfirmasi Pengembalian */}
+        {modalBuku && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-icon-top">
+                <InfoIcon />
+              </div>
+              <h3 className="modal-title">Konfirmasi Pengembalian</h3>
+              <p className="modal-subtitle">
+                Apakah Anda yakin ingin mengembalikan buku ini ke perpustakaan?
+              </p>
+              <div className="modal-book-card">
+                <div className={`modal-book-cover riwayat-cover-plain--${modalBuku.id}`}></div>
+                <div className="modal-book-info">
+                  <span className="modal-badge">Sedang Dipinjam</span>
+                  <h4 className="modal-book-title">{modalBuku.book_title}</h4>
+                  <p className="modal-book-author">{modalBuku.book_author}</p>
+                  <p className="modal-book-date">
+                    <CalendarIcon />
+                    Pinjam: {formatDate(modalBuku.borrow_date)}
+                  </p>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button className="modal-btn modal-btn--primary" onClick={handleConfirmReturn}>Kembalikan Buku</button>
+                <button className="modal-btn modal-btn--secondary" onClick={() => setModalBuku(null)}>Batal</button>
+              </div>
+              <div className="modal-info-box">
+                <ShieldCheckIcon />
+                <p>Buku akan diverifikasi secara fisik oleh pustakawan di meja layanan sebelum status peminjaman Anda dinyatakan selesai sepenuhnya.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Success */}
+        {successBuku && (
+          <div className="modal-overlay">
+            <div className="modal-content" style={{ maxWidth: '420px', padding: '32px 28px' }}>
+              <div className="modal-success-icon-wrap">
+                <div className="modal-success-icon-inner">
+                  <CheckIcon />
+                </div>
+              </div>
+              <h3 className="modal-success-title">Pengembalian Diajukan!</h3>
+              <p className="modal-success-subtitle">
+                Terima kasih. Buku Anda sedang menunggu verifikasi admin.
+              </p>
+              <div className="modal-success-card">
+                <div className="modal-success-item">
+                  <BookIcon />
+                  <div className="modal-success-text">
+                    <span className="modal-success-label">JUDUL BUKU</span>
+                    <span className="modal-success-value">{successBuku.book_title}</span>
+                  </div>
+                </div>
+                <div className="modal-success-item">
                   <CalendarIcon />
-                  Pinjam: {modalBuku.tanggalPinjam}
-                </p>
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button className="modal-btn modal-btn--primary" onClick={handleConfirmReturn}>
-                Kembalikan Buku
-              </button>
-              <button className="modal-btn modal-btn--secondary" onClick={() => setModalBuku(null)}>
-                Batal
-              </button>
-            </div>
-
-            <div className="modal-info-box">
-              <ShieldCheckIcon />
-              <p>Buku akan diverifikasi secara fisik oleh pustakawan di meja layanan sebelum status peminjaman Anda dinyatakan selesai sepenuhnya.</p>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* ── Modal Success Pengembalian ── */}
-      {successBuku && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '420px', padding: '32px 28px' }}>
-            <div className="modal-success-icon-wrap">
-              <div className="modal-success-icon-inner">
-                <CheckIcon />
-              </div>
-            </div>
-            
-            <h3 className="modal-success-title">Menunggu Konfirmasi Admin.</h3>
-            <p className="modal-success-subtitle">
-              Terima kasih telah mengembalikan buku tepat waktu.
-            </p>
-
-            <div className="modal-success-card">
-              <div className="modal-success-item">
-                <BookIcon />
-                <div className="modal-success-text">
-                  <span className="modal-success-label">JUDUL BUKU</span>
-                  <span className="modal-success-value">{successBuku.judul}</span>
+                  <div className="modal-success-text">
+                    <span className="modal-success-label">TANGGAL PENGAJUAN</span>
+                    <span className="modal-success-value">{formatDate(new Date())}</span>
+                  </div>
                 </div>
               </div>
-              <div className="modal-success-item">
-                <CalendarIcon />
-                <div className="modal-success-text">
-                  <span className="modal-success-label">TANGGAL PENGEMBALIAN</span>
-                  <span className="modal-success-value">{successBuku.tanggalKembali}</span>
-                </div>
+              <div className="modal-success-actions">
+                <button className="modal-btn modal-btn--primary" onClick={() => setSuccessBuku(null)}>Kembali ke Riwayat</button>
+                <button className="modal-btn modal-btn--outline" onClick={() => { setSuccessBuku(null); navigate("/katalog"); }}>Cari Buku Lagi</button>
               </div>
             </div>
-
-            <div className="modal-success-actions">
-              <button className="modal-btn modal-btn--primary" onClick={() => setSuccessBuku(null)}>
-                Kembali ke Riwayat
-              </button>
-              <button className="modal-btn modal-btn--outline" onClick={() => { setSuccessBuku(null); navigate("/katalog"); }}>
-                Cari Buku Lagi
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
       </main>
     </div>
   );

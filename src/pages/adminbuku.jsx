@@ -1,47 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./adminbuku.css";
-import AdminNavbar from "../components/AdminNavbar";
-
-const initialBooks = [
-  {
-    id: "BK-001",
-    title: "Ketenangan di Tengah Badai",
-    author: "Hamdan Syakir",
-    cover: null,
-    stok: 12,
-    total: 15,
-    status: "TERSEDIA",
-  },
-  {
-    id: "BK-002",
-    title: "Algoritma Harapan",
-    author: "Dr. Aris Setiawan",
-    cover: null,
-    stok: 8,
-    total: 10,
-    status: "HAMPIR HABIS",
-  },
-  {
-    id: "BK-003",
-    title: "Ruang Kenangan",
-    author: "Sari Wijaya",
-    cover: null,
-    stok: 0,
-    total: 10,
-    status: "DIPINJAM SEMUA",
-  },
-  {
-    id: "BK-004",
-    title: "Bioetika Masa Depan",
-    author: "Prof. M. Dahlan",
-    cover: null,
-    stok: 5,
-    total: 25,
-    status: "TERSEDIA",
-  },
-];
-
-const CATEGORIES = ["Semua Kategori", "Fiksi", "Non-Fiksi", "Sains", "Teknologi", "Sejarah", "Biografi"];
+import AdminNavbar from "../components/adminnavbar";
+import { fetchApi } from "../config/api";
 
 const BookIcon = () => (
   <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
@@ -86,23 +46,15 @@ const ChevronIcon = ({ dir = "right" }) => (
 );
 
 const BookCoverPlaceholder = ({ id }) => {
-  const colors = {
-    "BK-001": "#e8c4a0",
-    "BK-002": "#2c2c2c",
-    "BK-003": "#d4d0c8",
-    "BK-004": "#1a3a5c",
-  };
-  const bg = colors[id] || "#ccc";
+  const colors = ["#e8c4a0", "#2c2c2c", "#d4d0c8", "#1a3a5c", "#5a3a2c", "#3a5c1a", "#3a1a5c", "#1a5c3a"];
+  const bg = colors[(id - 1) % colors.length] || "#ccc";
   return (
     <div className="book-cover-placeholder" style={{ background: bg }}>
-      <div className="book-cover-lines">
-        <div /><div /><div />
-      </div>
+      <div className="book-cover-lines"><div /><div /><div /></div>
     </div>
   );
 };
 
-// ============ MODAL HAPUS ============
 function DeleteModal({ book, onConfirm, onCancel }) {
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -116,7 +68,7 @@ function DeleteModal({ book, onConfirm, onCancel }) {
         </div>
         <h2 className="modal-title">Hapus Koleksi Buku?</h2>
         <p className="modal-desc">
-          Apakah Anda yakin ingin menghapus buku <strong>'{book?.title}'</strong> dari koleksi? Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait buku ini.
+          Apakah Anda yakin ingin menghapus buku <strong>'{book?.title}'</strong> dari koleksi? Tindakan ini tidak dapat dibatalkan.
         </p>
         <div className="modal-actions">
           <button className="btn-batal" onClick={onCancel}>Batal</button>
@@ -127,25 +79,28 @@ function DeleteModal({ book, onConfirm, onCancel }) {
   );
 }
 
-// ============ MODAL TAMBAH ============
 function TambahBukuModal({ onClose, onSave }) {
-  const [form, setForm] = useState({
-    id: "",
-    category: "",
-    title: "",
-    author: "",
-    stok: 0,
-    desc: "",
-  });
+  const [form, setForm] = useState({ title: "", author: "", stok: 0 });
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title || !form.author) return;
+    setSaving(true);
+    const res = await fetchApi("/books", {
+      method: "POST",
+      body: JSON.stringify({ title: form.title, author: form.author, stock: Number(form.stok) }),
+    });
+    setSaving(false);
+    if (res.error) {
+      alert(res.error || "Gagal menambah buku.");
+      return;
+    }
+    onSave();
     setSaved(true);
   };
 
   const handleKembali = () => {
-    onSave(form);
     onClose();
   };
 
@@ -170,61 +125,28 @@ function TambahBukuModal({ onClose, onSave }) {
 
   return (
     <div className="tambah-page-overlay">
-    <AdminNavbar active="Buku" />
-
+      <AdminNavbar active="Buku" />
       <div className="tambah-content">
         <h1 className="tambah-title">Tambah Buku Baru</h1>
         <p className="tambah-sub">Lengkapi informasi di bawah ini untuk menambahkan koleksi ke dalam perpustakaan.</p>
 
         <div className="tambah-form-card">
-          <div className="tambah-form-left">
-            <div className="sampul-label">Sampul Buku</div>
-            <div className="sampul-upload">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d4687a" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <p>Klik atau seret file untuk unggah sampul</p>
-              <span>format JPG/PNG, Maks. 2MB</span>
-            </div>
-          </div>
-
-          <div className="tambah-form-right">
-            <div className="form-row-2">
-              <div className="form-group">
-                <label>ID Buku</label>
-                <input placeholder="Contoh: BUK-001" value={form.id} onChange={e => setForm({ ...form, id: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Kategori</label>
-                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-                  <option value="">Pilih Kategori</option>
-                  {CATEGORIES.slice(1).map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-
+          <div className="tambah-form-right" style={{ width: "100%", maxWidth: 600, margin: "0 auto" }}>
             <div className="form-group">
               <label>Judul Buku</label>
               <input placeholder="Masukkan judul lengkap buku" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
             </div>
-
-            <div className="form-row-2">
-              <div className="form-group">
-                <label>Penulis</label>
-                <input placeholder="Nama penulis" value={form.author} onChange={e => setForm({ ...form, author: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Jumlah Stok</label>
-                <input type="number" min="0" value={form.stok} onChange={e => setForm({ ...form, stok: parseInt(e.target.value) || 0 })} />
-              </div>
-            </div>
-
             <div className="form-group">
-              <label>Deskripsi Singkat</label>
-              <textarea placeholder="Berikan ringkasan isi buku..." rows={4} value={form.desc} onChange={e => setForm({ ...form, desc: e.target.value })} />
+              <label>Penulis</label>
+              <input placeholder="Nama penulis" value={form.author} onChange={e => setForm({ ...form, author: e.target.value })} />
             </div>
-
+            <div className="form-group">
+              <label>Jumlah Stok</label>
+              <input type="number" min="0" value={form.stok} onChange={e => setForm({ ...form, stok: parseInt(e.target.value) || 0 })} />
+            </div>
             <div className="tambah-form-actions">
               <button className="btn-batal" onClick={onClose}>Batal</button>
-              <button className="btn-simpan" onClick={handleSave}>Simpan Buku</button>
+              <button className="btn-simpan" onClick={handleSave} disabled={saving}>{saving ? "Menyimpan..." : "Simpan Buku"}</button>
             </div>
           </div>
         </div>
@@ -233,42 +155,52 @@ function TambahBukuModal({ onClose, onSave }) {
   );
 }
 
-// ============ MAIN PAGE ============
 export default function AdminBuku() {
-  const [books, setBooks] = useState(initialBooks);
+  const [books, setBooks] = useState([]);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("Semua Kategori");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showTambah, setShowTambah] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ totalBooks: 0, activeBorrowings: 0 });
 
-  const totalBuku = 1284;
-  const sedangDipinjam = 452;
-  const booksPerPage = 4;
-  const totalPages = 12;
+  const booksPerPage = 8;
+
+  async function loadBooks() {
+    setLoading(true);
+    const [booksRes, statsRes] = await Promise.all([
+      fetchApi("/books"),
+      fetchApi("/books/stats"),
+    ]);
+    if (!booksRes.error && Array.isArray(booksRes.data)) {
+      setBooks(booksRes.data);
+    }
+    if (!statsRes.error && statsRes.data) {
+      setStats(statsRes.data);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadBooks();
+  }, []);
 
   const filtered = books.filter(b =>
     b.title.toLowerCase().includes(search.toLowerCase()) ||
     b.author.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDelete = () => {
-    setBooks(prev => prev.filter(b => b.id !== deleteTarget.id));
-    setDeleteTarget(null);
-  };
+  const totalPages = Math.ceil(filtered.length / booksPerPage) || 1;
+  const paged = filtered.slice((currentPage - 1) * booksPerPage, currentPage * booksPerPage);
 
-  const handleSaveBuku = (form) => {
-    if (!form.title) return;
-    const newId = `BK-00${books.length + 1}`;
-    setBooks(prev => [...prev, {
-      id: form.id || newId,
-      title: form.title,
-      author: form.author,
-      cover: null,
-      stok: form.stok,
-      total: form.stok,
-      status: form.stok > 0 ? "TERSEDIA" : "DIPINJAM SEMUA",
-    }]);
+  const handleDelete = async () => {
+    const res = await fetchApi(`/books/${deleteTarget.id}`, { method: "DELETE" });
+    if (res.error) {
+      alert(res.error || "Gagal menghapus buku.");
+      return;
+    }
+    setDeleteTarget(null);
+    loadBooks();
   };
 
   const getStatusClass = (status) => {
@@ -278,24 +210,20 @@ export default function AdminBuku() {
     return "badge";
   };
 
-  const pages = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i);
-  } else {
-    pages.push(1, 2, 3, "...", totalPages);
-  }
+  const getStatusLabel = (stock) => {
+    if (stock === 0) return "DIPINJAM SEMUA";
+    if (stock <= 3) return "HAMPIR HABIS";
+    return "TERSEDIA";
+  };
 
   if (showTambah) {
-    return <TambahBukuModal onClose={() => setShowTambah(false)} onSave={handleSaveBuku} />;
+    return <TambahBukuModal onClose={() => { setShowTambah(false); loadBooks(); }} onSave={loadBooks} />;
   }
- 
+
   return (
     <div className="ab-root">
-      {/* NAVBAR */}
-        <AdminNavbar active="Buku" />
-
+      <AdminNavbar active="Buku" />
       <main className="ab-main">
-        {/* HEADER */}
         <div className="ab-header">
           <div>
             <h1 className="ab-page-title">Manajemen Data Buku</h1>
@@ -306,125 +234,99 @@ export default function AdminBuku() {
           </button>
         </div>
 
-        {/* STATS */}
         <div className="ab-stats">
           <div className="stat-card stat-card--pink">
             <div className="stat-info">
               <div className="stat-label">TOTAL KOLEKSI AKTIF</div>
-              <div className="stat-value">{totalBuku.toLocaleString("id-ID")} <span>Buku</span></div>
-              <div className="stat-note">↗ 24 buku baru ditambahkan minggu ini</div>
+              <div className="stat-value">{stats.totalBooks.toLocaleString("id-ID")} <span>Buku</span></div>
             </div>
-            <div className="stat-icon">
-              <BookIcon />
-            </div>
+            <div className="stat-icon"><BookIcon /></div>
           </div>
           <div className="stat-card stat-card--white">
             <div className="stat-info">
               <div className="stat-label">SEDANG DIPINJAM</div>
-              <div className="stat-value">{sedangDipinjam}</div>
+              <div className="stat-value">{stats.activeBorrowings}</div>
               <div className="stat-bar">
-                <div className="stat-bar-fill" style={{ width: `${(sedangDipinjam / totalBuku) * 100}%` }} />
+                <div className="stat-bar-fill" style={{ width: `${stats.totalBooks ? (stats.activeBorrowings / stats.totalBooks) * 100 : 0}%` }} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* SEARCH & FILTER */}
         <div className="ab-toolbar">
           <div className="ab-search-wrap">
             <SearchIcon />
-            <input
-              className="ab-search"
-              placeholder="Cari judul, penulis..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="ab-select-wrap">
-            <FilterIcon />
-            <select className="ab-select" value={category} onChange={e => setCategory(e.target.value)}>
-              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-            </select>
+            <input className="ab-search" placeholder="Cari judul, penulis..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} />
           </div>
         </div>
 
-        {/* TABLE */}
         <div className="ab-table-card">
-          <table className="ab-table">
-            <thead>
-              <tr>
-                <th>ID BUKU</th>
-                <th>INFORMASI BUKU</th>
-                <th>STOK</th>
-                <th>STATUS</th>
-                <th>AKSI</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((book) => (
-                <tr key={book.id}>
-                  <td className="td-id">{book.id}</td>
-                  <td className="td-info">
-                    <BookCoverPlaceholder id={book.id} />
-                    <div className="td-text">
-                      <div className="td-title">{book.title}</div>
-                      <div className="td-author">{book.author}</div>
-                    </div>
-                  </td>
-                  <td className="td-stok">
-                    <span className="stok-val">{String(book.stok).padStart(2, "0")}</span>
-                    <span className="stok-total"> /{book.total}</span>
-                  </td>
-                  <td>
-                    <span className={getStatusClass(book.status)}>{book.status}</span>
-                  </td>
-                  <td>
-                    <button className="btn-trash" onClick={() => setDeleteTarget(book)}>
-                      <TrashIcon />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {loading ? (
+            <p style={{ textAlign: "center", padding: 24, color: "#999" }}>Memuat buku...</p>
+          ) : (
+            <>
+              <table className="ab-table">
+                <thead>
+                  <tr>
+                    <th>ID BUKU</th>
+                    <th>INFORMASI BUKU</th>
+                    <th>STOK</th>
+                    <th>STATUS</th>
+                    <th>AKSI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map((book) => (
+                    <tr key={book.id}>
+                      <td className="td-id">BUK-{String(book.id).padStart(3, "0")}</td>
+                      <td className="td-info">
+                        <BookCoverPlaceholder id={book.id} />
+                        <div className="td-text">
+                          <div className="td-title">{book.title}</div>
+                          <div className="td-author">{book.author}</div>
+                        </div>
+                      </td>
+                      <td className="td-stok">
+                        <span className="stok-val">{String(book.stock).padStart(2, "0")}</span>
+                      </td>
+                      <td>
+                        <span className={getStatusClass(getStatusLabel(book.stock))}>{getStatusLabel(book.stock)}</span>
+                      </td>
+                      <td>
+                        <button className="btn-trash" onClick={() => setDeleteTarget(book)}>
+                          <TrashIcon />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-          {/* PAGINATION */}
-          <div className="ab-pagination">
-            <span className="pagination-info">
-              Menampilkan <strong>{filtered.length}</strong> dari <strong>{books.length}</strong> buku
-            </span>
-            <div className="pagination-controls">
-              <button className="pg-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-                <ChevronIcon dir="left" />
-              </button>
-              {pages.map((p, i) =>
-                p === "..." ? (
-                  <span key={`dots-${i}`} className="pg-dots">...</span>
-                ) : (
-                  <button
-                    key={p}
-                    className={`pg-btn ${currentPage === p ? "pg-btn--active" : ""}`}
-                    onClick={() => setCurrentPage(p)}
-                  >
-                    {p}
+              <div className="ab-pagination">
+                <span className="pagination-info">
+                  Menampilkan <strong>{paged.length}</strong> dari <strong>{filtered.length}</strong> buku
+                </span>
+                <div className="pagination-controls">
+                  <button className="pg-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                    <ChevronIcon dir="left" />
                   </button>
-                )
-              )}
-              <button className="pg-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-                <ChevronIcon dir="right" />
-              </button>
-            </div>
-          </div>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button key={p} className={`pg-btn ${currentPage === p ? "pg-btn--active" : ""}`} onClick={() => setCurrentPage(p)}>
+                      {p}
+                    </button>
+                  ))}
+                  <button className="pg-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                    <ChevronIcon dir="right" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </main>
 
-      {/* MODAL HAPUS */}
       {deleteTarget && (
-        <DeleteModal
-          book={deleteTarget}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteTarget(null)}
-        />
+        <DeleteModal book={deleteTarget} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
       )}
     </div>
   );
