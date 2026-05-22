@@ -292,7 +292,7 @@ export default function AdminBuku() {
                         </div>
                       </td>
                       <td className="td-stok">
-                        <span className="stok-val">{String(book.stock).padStart(2, "0")}</span>
+                        <span className="stok-val">{book.stock}</span>
                       </td>
                       <td>
                         <span className={getStatusClass(getStatusLabel(book.stock))}>{getStatusLabel(book.stock)}</span>
