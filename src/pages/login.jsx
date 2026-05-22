@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./login.css";
+import { fetchApi } from "../config/api";
 
 // Icon sederhana — bisa diganti dengan react-icons jika sudah diinstall
 const UserIcon = () => (
@@ -42,14 +43,23 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const userId = username === "admin"
-        ? 1
-        : Math.max(2, username.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 100000);
-      const role = username === "admin" ? "admin" : "user";
-      localStorage.setItem("user", JSON.stringify({ id: userId, username, role }));
-      window.location.href = role === "admin" ? "/admin" : "/";
+      const res = await fetchApi("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (res.error || !res.data?.user) {
+        alert(res.error || "Login gagal. Periksa username dan password Anda.");
+        setLoading(false);
+        return;
+      }
+
+      const user = res.data.user;
+      localStorage.setItem("user", JSON.stringify(user));
+      window.location.href = user.role === "admin" ? "/admin" : "/";
     } catch (err) {
       console.error("Login gagal:", err);
+      alert("Terjadi kesalahan saat login.");
     } finally {
       setLoading(false);
     }
@@ -100,7 +110,7 @@ export default function Login() {
           {/* Field Password */}
           <div className="field-group">
             <label htmlFor="password" className="field-label">
-              Password
+              Password (NIM)
             </label>
             <div className="input-wrapper">
               <span className="input-icon left" aria-hidden="true">

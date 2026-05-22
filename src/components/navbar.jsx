@@ -30,10 +30,19 @@ const navLinks = [
   { label: "Pinjaman Saya",href: "/pinjaman" },
 ];
 
+function getUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+}
+
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showProfile, setShowProfile] = useState(false);
+  const user = getUser();
 
   function isActive(link) {
     if (location.pathname === link.href) return true;
@@ -84,8 +93,8 @@ export default function Navbar() {
                 <div className="profile-popup-avatar">
                   <UserIcon />
                 </div>
-                <h4 className="profile-popup-name">User 1</h4>
-                <p className="profile-popup-id">202401099</p>
+                <h4 className="profile-popup-name">{user?.name || "Mahasiswa"}</h4>
+                <p className="profile-popup-id">{user?.nim || user?.username || "-"}</p>
                 <span className="profile-popup-role">Mahasiswa</span>
               </div>
               <div className="profile-popup-bottom">

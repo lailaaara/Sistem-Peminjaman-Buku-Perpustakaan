@@ -31,10 +31,19 @@ const ROUTES = {
   Transaksi: "/admin/transaksi",
 };
 
+function getUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+}
+
 export default function AdminNavbar({ active }) {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState(active || "Dashboard");
   const [showProfile, setShowProfile] = useState(false);
+  const user = getUser();
 
   function handleNav(link) {
     setActiveNav(link);
@@ -82,8 +91,8 @@ export default function AdminNavbar({ active }) {
                 <div className="profile-popup-avatar">
                   <UserIcon />
                 </div>
-                <h4 className="profile-popup-name">Admin 1</h4>
-                <p className="profile-popup-id">12345678</p>
+                <h4 className="profile-popup-name">{user?.name || "Admin"}</h4>
+                <p className="profile-popup-id">{user?.username || "-"}</p>
                 <span className="profile-popup-role">Admin Perpustakaan</span>
               </div>
               <div className="profile-popup-bottom">

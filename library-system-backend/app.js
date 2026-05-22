@@ -12,9 +12,11 @@ app.use(express.json());
 
 // ✅ import routes (TARUH DI SINI)
 const bookRoutes = require("./backend/config/controllers/routes/bookRoutes");
+const authRoutes = require("./backend/config/controllers/routes/authRoutes");
 
 // ✅ pakai routes (TARUH DI SINI)
 app.use("/api/books", bookRoutes);
+app.use("/api/auth", authRoutes);
 
 // optional test route
 app.get("/", (req, res) => {
