@@ -89,7 +89,7 @@ function TambahBukuModal({ onClose, onSave }) {
     setSaving(true);
     const res = await fetchApi("/books", {
       method: "POST",
-      body: JSON.stringify({ title: form.title, author: form.author, stock: Number(form.stok) }),
+      body: JSON.stringify({ title: form.title, author: form.author, stock: Number(form.stok) || 0 }),
     });
     setSaving(false);
     if (res.error) {
@@ -142,7 +142,12 @@ function TambahBukuModal({ onClose, onSave }) {
             </div>
             <div className="form-group">
               <label>Jumlah Stok</label>
-              <input type="number" min="0" value={form.stok} onChange={e => setForm({ ...form, stok: parseInt(e.target.value) || 0 })} />
+              <input
+                type="number"
+                min="0"
+                value={form.stok}
+                onChange={e => setForm({ ...form, stok: e.target.value })}
+              />
             </div>
             <div className="tambah-form-actions">
               <button className="btn-batal" onClick={onClose}>Batal</button>
